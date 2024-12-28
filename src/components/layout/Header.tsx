@@ -122,30 +122,6 @@ const Header = () => {
                   </ul>
                 </NavigationMenuContent>
               </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link
-                  to="/features"
-                  className={cn(
-                    navigationMenuTriggerStyle(),
-                    "bg-transparent",
-                    isActive("/features") && "text-blue-600",
-                  )}
-                >
-                  Features
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link
-                  to="/pricing"
-                  className={cn(
-                    navigationMenuTriggerStyle(),
-                    "bg-transparent",
-                    isActive("/pricing") && "text-blue-600",
-                  )}
-                >
-                  Pricing
-                </Link>
-              </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
         </div>
