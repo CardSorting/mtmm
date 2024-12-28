@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterCard from "../gallery/CharacterCard";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   SlidersHorizontal,
@@ -25,12 +26,26 @@ import {
   Clock,
   Zap,
   DollarSign,
+  Loader2,
 } from "lucide-react";
 import Header from "../layout/Header";
 import Footer from "../layout/Footer";
 
 type Category = "all" | "professional" | "casual" | "fantasy";
 type SortOption = "popular" | "newest" | "rating";
+
+interface Companion {
+  id: string;
+  name: string;
+  avatar: string;
+  description: string;
+  theme: "professional" | "casual" | "fantasy";
+  rating: number;
+  conversations: number;
+  likes: number;
+  createdAt: string;
+  featured?: boolean;
+}
 
 const categories: { value: Category; label: string }[] = [
   { value: "all", label: "All Companions" },
@@ -52,7 +67,17 @@ const categoryIcons = {
   all: <Sparkles className="w-5 h-5" />,
 };
 
-const companions = [
+const formatNumber = (num: number): string => {
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}M`;
+  }
+  if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}K`;
+  }
+  return num.toString();
+};
+
+const companions: Companion[] = [
   {
     id: "1",
     name: "Business Strategist Pro",
@@ -60,7 +85,7 @@ const companions = [
       "https://api.dicebear.com/7.x/avataaars/svg?seed=business&backgroundColor=b6e3f4",
     description:
       "Expert AI consultant specializing in business strategy, market analysis, and growth optimization.",
-    theme: "professional" as const,
+    theme: "professional",
     rating: 4.8,
     conversations: 23456,
     likes: 8901,
@@ -74,7 +99,7 @@ const companions = [
       "https://api.dicebear.com/7.x/avataaars/svg?seed=creative&backgroundColor=ffdfba",
     description:
       "Your imaginative AI partner for creative projects, brainstorming, and artistic exploration.",
-    theme: "casual" as const,
+    theme: "casual",
     rating: 4.9,
     conversations: 18234,
     likes: 7234,
@@ -88,52 +113,97 @@ const companions = [
       "https://api.dicebear.com/7.x/avataaars/svg?seed=tech&backgroundColor=baffc9",
     description:
       "Advanced AI companion for programming, technology consulting, and technical problem-solving.",
-    theme: "professional" as const,
+    theme: "professional",
     rating: 4.7,
     conversations: 15678,
     likes: 6789,
     createdAt: "2024-02-01",
   },
-  {
-    id: "4",
-    name: "Fantasy Guide",
-    avatar:
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=fantasy&backgroundColor=e6c3ff",
-    description:
-      "Your gateway to magical realms and epic adventures through AI-powered storytelling.",
-    theme: "fantasy" as const,
-    rating: 4.9,
-    conversations: 12345,
-    likes: 5678,
-    createdAt: "2024-02-15",
-  },
-  {
-    id: "5",
-    name: "Wellness Coach",
-    avatar:
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=wellness&backgroundColor=c3ffc3",
-    description:
-      "Supportive AI companion for health, wellness, and personal development journeys.",
-    theme: "casual" as const,
-    rating: 4.6,
-    conversations: 9876,
-    likes: 4321,
-    createdAt: "2024-02-20",
-  },
-  {
-    id: "6",
-    name: "Study Buddy",
-    avatar:
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=study&backgroundColor=ffd7d7",
-    description:
-      "Your dedicated AI learning companion for academic success and skill development.",
-    theme: "professional" as const,
-    rating: 4.8,
-    conversations: 8765,
-    likes: 3456,
-    createdAt: "2024-03-01",
-  },
 ];
+
+const generateMoreCompanions = (
+  startId: number,
+  count: number,
+): Companion[] => {
+  const themes = ["professional", "casual", "fantasy"] as const;
+  const adjectives = [
+    "Advanced",
+    "Smart",
+    "Intelligent",
+    "Expert",
+    "Master",
+    "Elite",
+  ];
+  const roles = [
+    "Assistant",
+    "Guide",
+    "Mentor",
+    "Coach",
+    "Advisor",
+    "Companion",
+  ];
+
+  return Array.from({ length: count }, (_, i) => ({
+    id: `${startId + i}`,
+    name: `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${roles[Math.floor(Math.random() * roles.length)]}`,
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${startId + i}`,
+    description:
+      "An AI companion ready to assist with various tasks and engage in meaningful conversations.",
+    theme: themes[Math.floor(Math.random() * themes.length)],
+    rating: Number((4 + Math.random() * 0.9).toFixed(1)),
+    conversations: Math.floor(1000 + Math.random() * 49000) * 10,
+    likes: Math.floor(500 + Math.random() * 9500) * 5,
+    createdAt: new Date(
+      Date.now() - Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000,
+    ).toISOString(),
+    featured: Math.random() > 0.8,
+  }));
+};
+
+const allCompanions = [
+  ...companions,
+  ...generateMoreCompanions(companions.length + 1, 30),
+];
+
+const ITEMS_PER_PAGE = 9;
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      when: "beforeChildren",
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 80,
+      damping: 12,
+    },
+  },
+};
+
+const newItemVariants = {
+  hidden: { opacity: 0, y: 40, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 70,
+      damping: 15,
+    },
+  },
+};
 
 const CompanionsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -141,8 +211,11 @@ const CompanionsPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>("popular");
   const [priceFilter, setPriceFilter] = useState<string[]>([]);
   const [languageFilter, setLanguageFilter] = useState<string[]>([]);
+  const [displayedItems, setDisplayedItems] = useState(ITEMS_PER_PAGE);
+  const [isLoading, setIsLoading] = useState(false);
+  const [newItemsStartIndex, setNewItemsStartIndex] = useState(0);
 
-  const filteredCompanions = companions
+  const filteredCompanions = allCompanions
     .filter((companion) => {
       const matchesSearch = companion.name
         .toLowerCase()
@@ -166,13 +239,29 @@ const CompanionsPage: React.FC = () => {
       }
     });
 
-  const featuredCompanions = companions.filter((c) => c.featured);
+  const featuredCompanions = allCompanions.filter((c) => c.featured);
+  const visibleCompanions = filteredCompanions.slice(0, displayedItems);
+
+  useEffect(() => {
+    setDisplayedItems(ITEMS_PER_PAGE);
+    setNewItemsStartIndex(0);
+  }, [searchQuery, selectedCategory, sortBy]);
+
+  const handleShowMore = () => {
+    setIsLoading(true);
+    setNewItemsStartIndex(displayedItems);
+    setTimeout(() => {
+      setDisplayedItems((prev) =>
+        Math.min(prev + ITEMS_PER_PAGE, filteredCompanions.length),
+      );
+      setIsLoading(false);
+    }, 800);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Header />
       <main className="flex-1">
-        {/* Hero Section */}
         <div className="bg-gradient-to-b from-blue-50 to-white py-12">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto text-center">
@@ -186,7 +275,6 @@ const CompanionsPage: React.FC = () => {
 
         <div className="container mx-auto px-4 py-12">
           <div className="flex gap-8">
-            {/* Sidebar Filters */}
             <div className="w-64 flex-shrink-0">
               <div className="sticky top-24 bg-white rounded-lg border p-6 space-y-6">
                 <div>
@@ -323,7 +411,6 @@ const CompanionsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Main Content */}
             <div className="flex-1">
               <Tabs defaultValue="all" className="w-full">
                 <div className="flex justify-between items-center mb-8">
@@ -335,61 +422,137 @@ const CompanionsPage: React.FC = () => {
                 </div>
 
                 <TabsContent value="all">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredCompanions.map((companion) => (
-                      <CharacterCard
-                        key={companion.id}
-                        name={companion.name}
-                        avatar={companion.avatar}
-                        description={companion.description}
-                        theme={companion.theme}
-                        rating={companion.rating}
-                        conversations={companion.conversations}
-                        likes={companion.likes}
-                      />
-                    ))}
-                  </div>
+                  <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12"
+                  >
+                    <AnimatePresence>
+                      {visibleCompanions.map((companion, index) => (
+                        <motion.div
+                          key={companion.id}
+                          variants={
+                            index >= newItemsStartIndex
+                              ? newItemVariants
+                              : itemVariants
+                          }
+                          initial="hidden"
+                          animate="visible"
+                          style={{
+                            zIndex: visibleCompanions.length - index,
+                          }}
+                          className={`hover:scale-105 transition-transform duration-200 ${index >= newItemsStartIndex ? "relative" : ""}`}
+                        >
+                          <CharacterCard
+                            name={companion.name}
+                            avatar={companion.avatar}
+                            description={companion.description}
+                            theme={companion.theme}
+                            rating={companion.rating}
+                            conversations={formatNumber(
+                              companion.conversations,
+                            )}
+                            likes={formatNumber(companion.likes)}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </motion.div>
+
+                  {visibleCompanions.length < filteredCompanions.length && (
+                    <motion.div
+                      className="flex justify-center items-center py-12"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <Button
+                        size="lg"
+                        onClick={handleShowMore}
+                        disabled={isLoading}
+                        className="min-w-[200px] bg-blue-600 hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+                      >
+                        {isLoading ? (
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Loading more companions...</span>
+                          </div>
+                        ) : (
+                          "Show More Companions"
+                        )}
+                      </Button>
+                    </motion.div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="featured">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {featuredCompanions.map((companion) => (
-                      <CharacterCard
+                  <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12"
+                  >
+                    {featuredCompanions.map((companion, index) => (
+                      <motion.div
                         key={companion.id}
-                        name={companion.name}
-                        avatar={companion.avatar}
-                        description={companion.description}
-                        theme={companion.theme}
-                        rating={companion.rating}
-                        conversations={companion.conversations}
-                        likes={companion.likes}
-                      />
-                    ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="new">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {companions
-                      .sort(
-                        (a, b) =>
-                          new Date(b.createdAt).getTime() -
-                          new Date(a.createdAt).getTime(),
-                      )
-                      .slice(0, 4)
-                      .map((companion) => (
+                        variants={itemVariants}
+                        style={{
+                          zIndex: featuredCompanions.length - index,
+                        }}
+                        className="hover:scale-105 transition-transform duration-200"
+                      >
                         <CharacterCard
-                          key={companion.id}
                           name={companion.name}
                           avatar={companion.avatar}
                           description={companion.description}
                           theme={companion.theme}
                           rating={companion.rating}
-                          conversations={companion.conversations}
-                          likes={companion.likes}
+                          conversations={formatNumber(companion.conversations)}
+                          likes={formatNumber(companion.likes)}
                         />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </TabsContent>
+
+                <TabsContent value="new">
+                  <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12"
+                  >
+                    {allCompanions
+                      .sort(
+                        (a, b) =>
+                          new Date(b.createdAt).getTime() -
+                          new Date(a.createdAt).getTime(),
+                      )
+                      .slice(0, 6)
+                      .map((companion, index) => (
+                        <motion.div
+                          key={companion.id}
+                          variants={itemVariants}
+                          style={{
+                            zIndex: 6 - index,
+                          }}
+                          className="hover:scale-105 transition-transform duration-200"
+                        >
+                          <CharacterCard
+                            name={companion.name}
+                            avatar={companion.avatar}
+                            description={companion.description}
+                            theme={companion.theme}
+                            rating={companion.rating}
+                            conversations={formatNumber(
+                              companion.conversations,
+                            )}
+                            likes={formatNumber(companion.likes)}
+                          />
+                        </motion.div>
                       ))}
-                  </div>
+                  </motion.div>
                 </TabsContent>
               </Tabs>
 
