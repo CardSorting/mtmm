@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, ArrowRight } from "lucide-react";
 
 const plans = [
   {
@@ -114,8 +114,17 @@ const PricingSection = () => {
               <Button
                 className={`w-full ${plan.highlighted ? "bg-white text-blue-600 hover:bg-blue-50" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                 variant={plan.highlighted ? "outline" : "default"}
+                onClick={() =>
+                  window.open(
+                    "https://www.patreon.com/c/matrixmingle",
+                    "_blank",
+                  )
+                }
               >
-                Get Started
+                <span className="flex items-center gap-2">
+                  Subscribe on Patreon
+                  <ArrowRight className="w-4 h-4" />
+                </span>
               </Button>
             </motion.div>
           ))}
