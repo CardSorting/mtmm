@@ -7,6 +7,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterCard from "../gallery/CharacterCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/supabase";
+import { Companion } from "@/types/companions";
 import {
   Search,
   SlidersHorizontal,
@@ -33,19 +35,6 @@ import Footer from "../layout/Footer";
 
 type Category = "all" | "professional" | "casual" | "fantasy";
 type SortOption = "popular" | "newest" | "rating";
-
-interface Companion {
-  id: string;
-  name: string;
-  avatar: string;
-  description: string;
-  theme: "professional" | "casual" | "fantasy";
-  rating: number;
-  conversations: number;
-  likes: number;
-  createdAt: string;
-  featured?: boolean;
-}
 
 const categories: { value: Category; label: string }[] = [
   { value: "all", label: "All Companions" },
@@ -76,94 +65,6 @@ const formatNumber = (num: number): string => {
   }
   return num.toString();
 };
-
-const companions: Companion[] = [
-  {
-    id: "1",
-    name: "Business Strategist Pro",
-    avatar:
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=business&backgroundColor=b6e3f4",
-    description:
-      "Expert AI consultant specializing in business strategy, market analysis, and growth optimization.",
-    theme: "professional",
-    rating: 4.8,
-    conversations: 23456,
-    likes: 8901,
-    createdAt: "2024-01-15",
-    featured: true,
-  },
-  {
-    id: "2",
-    name: "Creative Muse",
-    avatar:
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=creative&backgroundColor=ffdfba",
-    description:
-      "Your imaginative AI partner for creative projects, brainstorming, and artistic exploration.",
-    theme: "casual",
-    rating: 4.9,
-    conversations: 18234,
-    likes: 7234,
-    createdAt: "2024-01-20",
-    featured: true,
-  },
-  {
-    id: "3",
-    name: "Tech Guru",
-    avatar:
-      "https://api.dicebear.com/7.x/avataaars/svg?seed=tech&backgroundColor=baffc9",
-    description:
-      "Advanced AI companion for programming, technology consulting, and technical problem-solving.",
-    theme: "professional",
-    rating: 4.7,
-    conversations: 15678,
-    likes: 6789,
-    createdAt: "2024-02-01",
-  },
-];
-
-const generateMoreCompanions = (
-  startId: number,
-  count: number,
-): Companion[] => {
-  const themes = ["professional", "casual", "fantasy"] as const;
-  const adjectives = [
-    "Advanced",
-    "Smart",
-    "Intelligent",
-    "Expert",
-    "Master",
-    "Elite",
-  ];
-  const roles = [
-    "Assistant",
-    "Guide",
-    "Mentor",
-    "Coach",
-    "Advisor",
-    "Companion",
-  ];
-
-  return Array.from({ length: count }, (_, i) => ({
-    id: `${startId + i}`,
-    name: `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${roles[Math.floor(Math.random() * roles.length)]}`,
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${startId + i}`,
-    description:
-      "An AI companion ready to assist with various tasks and engage in meaningful conversations.",
-    theme: themes[Math.floor(Math.random() * themes.length)],
-    rating: Number((4 + Math.random() * 0.9).toFixed(1)),
-    conversations: Math.floor(1000 + Math.random() * 49000) * 10,
-    likes: Math.floor(500 + Math.random() * 9500) * 5,
-    createdAt: new Date(
-      Date.now() - Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000,
-    ).toISOString(),
-    featured: Math.random() > 0.8,
-  }));
-};
-
-const allCompanions = [
-  ...companions,
-  ...generateMoreCompanions(companions.length + 1, 30),
-];
 
 const ITEMS_PER_PAGE = 9;
 
@@ -207,6 +108,7 @@ const newItemVariants = {
 
 const CompanionsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [allCompanions, setAllCompanions] = useState<Companion[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category>("all");
   const [sortBy, setSortBy] = useState<SortOption>("popular");
   const [priceFilter, setPriceFilter] = useState<string[]>([]);
@@ -214,6 +116,27 @@ const CompanionsPage: React.FC = () => {
   const [displayedItems, setDisplayedItems] = useState(ITEMS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(false);
   const [newItemsStartIndex, setNewItemsStartIndex] = useState(0);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCompanions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("companions")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setAllCompanions(data || []);
+      } catch (error) {
+        console.error("Error fetching companions:", error);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    fetchCompanions();
+  }, []);
 
   const filteredCompanions = allCompanions
     .filter((companion) => {
@@ -230,7 +153,7 @@ const CompanionsPage: React.FC = () => {
           return b.likes - a.likes;
         case "newest":
           return (
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
         case "rating":
           return b.rating - a.rating;
@@ -257,6 +180,14 @@ const CompanionsPage: React.FC = () => {
       setIsLoading(false);
     }, 800);
   };
+
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -526,8 +457,8 @@ const CompanionsPage: React.FC = () => {
                     {allCompanions
                       .sort(
                         (a, b) =>
-                          new Date(b.createdAt).getTime() -
-                          new Date(a.createdAt).getTime(),
+                          new Date(b.created_at).getTime() -
+                          new Date(a.created_at).getTime(),
                       )
                       .slice(0, 6)
                       .map((companion, index) => (
