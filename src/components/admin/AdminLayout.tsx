@@ -1,10 +1,13 @@
 import React from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Settings, Users } from "lucide-react";
+import { Users, LogOut } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "@/components/ui/use-toast";
 
 const AdminLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navigation = [
     {
@@ -12,12 +15,20 @@ const AdminLayout = () => {
       href: "/admin/companions",
       icon: Users,
     },
-    {
-      name: "Settings",
-      href: "/admin/settings",
-      icon: Settings,
-    },
   ];
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out",
+        variant: "destructive",
+      });
+      return;
+    }
+    navigate("/login");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -51,6 +62,21 @@ const AdminLayout = () => {
                 </Link>
               );
             })}
+            <button
+              onClick={handleLogout}
+              className={cn(
+                "flex w-full items-center px-4 py-2 text-sm font-medium rounded-md",
+                "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+              )}
+            >
+              <LogOut
+                className={cn(
+                  "mr-3 h-5 w-5",
+                  "text-gray-400 group-hover:text-gray-500",
+                )}
+              />
+              Sign Out
+            </button>
           </nav>
         </div>
 

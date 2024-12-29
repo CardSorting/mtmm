@@ -46,7 +46,7 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
-        title: "Error",
+        title: "Login Failed",
         description: error.message || "Invalid login credentials",
         variant: "destructive",
       });
