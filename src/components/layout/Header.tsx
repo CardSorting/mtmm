@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "../ui/button";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -9,18 +9,19 @@ import {
   NavigationMenuTrigger,
   NavigationMenuContent,
   navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
-import { cn } from "@/lib/utils";
+} from "../ui/navigation-menu";
+import { cn } from "../../lib/utils";
 import { Users, Sparkles, Briefcase, Wand2, Filter, LogIn } from "lucide-react";
-import { useAuth } from "@/lib/supabase-auth";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "../../lib/firebase";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { supabase } from "@/lib/supabase";
+} from "../ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { signOut } from "firebase/auth";
 
 const companionsLinks = [
   {
@@ -77,11 +78,15 @@ ListItem.displayName = "ListItem";
 
 const Header = () => {
   const location = useLocation();
-  const { user } = useAuth();
+  const [user] = useAuthState(auth);
   const isActive = (path: string) => location.pathname === path;
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   return (
@@ -143,8 +148,8 @@ const Header = () => {
                   >
                     <Avatar className="h-8 w-8">
                       <AvatarImage
-                        src={user.user_metadata?.avatar_url}
-                        alt={user.email}
+                        src={user.photoURL || undefined}
+                        alt={user.email || "User"}
                       />
                       <AvatarFallback>
                         {user.email?.slice(0, 2).toUpperCase()}

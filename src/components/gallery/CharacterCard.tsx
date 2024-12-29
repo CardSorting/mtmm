@@ -6,10 +6,10 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Badge } from "../ui/badge";
 import {
   MessageCircle,
   Star,
@@ -18,15 +18,17 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/lib/supabase-auth";
-import { toast } from "@/components/ui/use-toast";
+import { db } from "../../lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "../../lib/firebase";
+import { toast } from "../ui/use-toast";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "../ui/tooltip";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 interface CharacterCardProps {
   id: string;
@@ -63,7 +65,7 @@ const CharacterCard = ({
   user_interaction = { liked: false, disliked: false, starred: false },
   onInteractionUpdate,
 }: CharacterCardProps) => {
-  const { user } = useAuth();
+  const [user] = useAuthState(auth);
   const [isLoading, setIsLoading] = React.useState(false);
   const [interaction, setInteraction] = React.useState(user_interaction);
   const [counts, setCounts] = React.useState({
@@ -97,6 +99,7 @@ const CharacterCard = ({
     setIsLoading(true);
     try {
       const newInteraction = { ...interaction };
+      const interactionRef = doc(db, "user_companion_interactions", `${user.uid}_${id}`);
 
       // Toggle the interaction
       if (type === "like") {
@@ -109,17 +112,13 @@ const CharacterCard = ({
         newInteraction.starred = !newInteraction.starred;
       }
 
-      const { error } = await supabase
-        .from("user_companion_interactions")
-        .upsert({
-          user_id: user.id,
-          companion_id: id,
-          liked: newInteraction.liked,
-          disliked: newInteraction.disliked,
-          starred: newInteraction.starred,
-        });
-
-      if (error) throw error;
+      await setDoc(interactionRef, {
+        user_id: user.uid,
+        companion_id: id,
+        liked: newInteraction.liked,
+        disliked: newInteraction.disliked,
+        starred: newInteraction.starred,
+      }, { merge: true });
 
       // Update local state
       setInteraction(newInteraction);
