@@ -55,6 +55,7 @@ const CompanionsAdmin = () => {
     tags: [],
   });
   const [newTag, setNewTag] = useState("");
+  const [newCategory, setNewCategory] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   const fetchCategories = async () => {
@@ -91,6 +92,35 @@ const CompanionsAdmin = () => {
       toast({
         title: "Error",
         description: "Failed to fetch tags",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategory.trim()) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("tag_categories")
+        .insert([{ name: newCategory.trim() }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setCategories([...categories, data]);
+      setNewCategory("");
+      setSelectedCategory(data.id);
+      toast({
+        title: "Success",
+        description: "Category created successfully",
+      });
+    } catch (error) {
+      console.error("Error creating category:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create category",
         variant: "destructive",
       });
     }
@@ -406,14 +436,38 @@ const CompanionsAdmin = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Tag Categories</Label>
+                <div className="flex justify-between items-center">
+                  <Label>Tag Categories</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="New category"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      className="w-[200px]"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCreateCategory();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleCreateCategory}
+                      size="sm"
+                      variant="outline"
+                    >
+                      Add Category
+                    </Button>
+                  </div>
+                </div>
                 <div className="space-y-6">
                   <Select
                     value={selectedCategory}
                     onValueChange={setSelectedCategory}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
+                      <SelectValue placeholder="Select or create a category" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((category) => (
