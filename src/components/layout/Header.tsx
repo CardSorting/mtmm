@@ -11,7 +11,7 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
-import { Users, Sparkles, Briefcase, Wand2 } from "lucide-react";
+import { Users, Sparkles, Briefcase, Wand2, Filter } from "lucide-react";
 
 const companionsLinks = [
   {
@@ -31,6 +31,12 @@ const companionsLinks = [
     href: "/companions?category=fantasy",
     description: "Imaginative AI companions for creative adventures",
     icon: <Wand2 className="w-5 h-5" />,
+  },
+  {
+    title: "Explore All",
+    href: "/explore",
+    description: "Browse all companions by categories and interests",
+    icon: <Filter className="w-5 h-5" />,
   },
 ];
 
@@ -80,7 +86,8 @@ const Header = () => {
                 <NavigationMenuTrigger
                   className={cn(
                     "bg-transparent",
-                    isActive("/companions") && "text-blue-600",
+                    (isActive("/companions") || isActive("/explore")) &&
+                      "text-blue-600",
                   )}
                 >
                   Browse
@@ -105,20 +112,6 @@ const Header = () => {
                         </Link>
                       </li>
                     ))}
-                    <li className="col-span-2">
-                      <Link
-                        to="/companions"
-                        className="flex w-full select-none items-center justify-between rounded-md bg-blue-50 p-4 no-underline outline-none focus:shadow-md"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Users className="w-5 h-5 text-blue-600" />
-                          <span className="text-sm font-medium">
-                            View All Companions
-                          </span>
-                        </div>
-                        <span className="text-sm text-blue-600">{"→"}</span>
-                      </Link>
-                    </li>
                   </ul>
                 </NavigationMenuContent>
               </NavigationMenuItem>

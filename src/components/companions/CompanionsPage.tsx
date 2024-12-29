@@ -474,47 +474,41 @@ const CompanionsPage: React.FC = () => {
                   {/* Right Sidebar */}
                   <div className="w-64 flex-shrink-0">
                     <div className="sticky top-24 bg-white rounded-lg border p-6 space-y-6">
-                      {/* Categories Section */}
+                      {/* Categories & Tags Section */}
                       <div>
                         <h3 className="text-lg font-semibold mb-4">
-                          Categories
+                          Filter by Category
                         </h3>
-                        <Accordion
-                          type="multiple"
-                          defaultValue={categories.map((c) => c.id)}
-                          className="w-full"
-                        >
-                          {categories.map((category) => {
-                            const categoryTags = groupedTags[category.id] || [];
-                            if (categoryTags.length === 0) return null;
+                        <ScrollArea className="h-[400px] pr-4">
+                          <div className="space-y-4">
+                            {categories.map((category) => {
+                              const categoryTags =
+                                groupedTags[category.id] || [];
+                              if (categoryTags.length === 0) return null;
 
-                            const selectedCount = categoryTags.filter((tag) =>
-                              selectedTags.includes(tag.id),
-                            ).length;
+                              const selectedCount = categoryTags.filter((tag) =>
+                                selectedTags.includes(tag.id),
+                              ).length;
 
-                            return (
-                              <AccordionItem
-                                key={category.id}
-                                value={category.id}
-                                className="border-b-0"
-                              >
-                                <AccordionTrigger className="hover:no-underline py-2 px-3 hover:bg-gray-100 rounded-md">
-                                  <div className="flex items-center justify-between w-full">
-                                    <span className="font-medium">
+                              return (
+                                <div
+                                  key={category.id}
+                                  className="bg-gray-50 rounded-lg p-3"
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-sm">
                                       {category.name}
                                     </span>
                                     {selectedCount > 0 && (
                                       <Badge
                                         variant="secondary"
-                                        className="ml-2 font-normal"
+                                        className="text-xs"
                                       >
                                         {selectedCount}
                                       </Badge>
                                     )}
                                   </div>
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                  <div className="space-y-1 mt-1">
+                                  <div className="space-y-1">
                                     {categoryTags.map((tag) => (
                                       <Button
                                         key={tag.id}
@@ -524,42 +518,43 @@ const CompanionsPage: React.FC = () => {
                                             : "ghost"
                                         }
                                         onClick={() => toggleTag(tag.id)}
-                                        className="w-full justify-start text-sm"
+                                        className="w-full justify-start text-xs font-normal h-8"
                                         size="sm"
                                       >
                                         {tag.name}
                                       </Button>
                                     ))}
                                   </div>
-                                </AccordionContent>
-                              </AccordionItem>
-                            );
-                          })}
-                        </Accordion>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </ScrollArea>
                       </div>
 
                       {selectedTags.length > 0 && (
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
+                        <div className="border-t pt-6">
+                          <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium">
-                              Selected Tags
+                              Selected Filters
                             </span>
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-8 text-xs"
                               onClick={() => setSelectedTags([])}
                             >
                               Clear all
                             </Button>
                           </div>
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-2">
                             {selectedTags.map((tagId) => {
                               const tag = tags.find((t) => t.id === tagId);
                               return (
                                 <Badge
                                   key={tagId}
                                   variant="secondary"
-                                  className="cursor-pointer"
+                                  className="cursor-pointer hover:bg-gray-200 text-xs"
                                   onClick={() => toggleTag(tagId)}
                                 >
                                   {tag?.name}

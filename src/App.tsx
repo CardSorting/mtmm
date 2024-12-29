@@ -4,6 +4,7 @@ import Home from "./components/home";
 import CompanionsPage from "./components/companions/CompanionsPage";
 import AdminLayout from "./components/admin/AdminLayout";
 import CompanionsAdmin from "./components/admin/CompanionsAdmin";
+import ExplorePage from "./components/explore/ExplorePage";
 import LoginPage from "./components/auth/LoginPage";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -15,6 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/companions" element={<CompanionsPage />} />
+          <Route path="/explore" element={<ExplorePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/admin"
