@@ -3,36 +3,51 @@ import { supabase } from "@/lib/supabase";
 import CharacterCard from "./CharacterCard";
 import { Companion } from "@/types/companions";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/supabase-auth";
 
 interface CharacterGridProps {
   selectedTheme?: "professional" | "casual" | "fantasy" | "all";
 }
 
 const CharacterGrid = ({ selectedTheme = "all" }: CharacterGridProps) => {
+  const { user } = useAuth();
   const [characters, setCharacters] = useState<Companion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchCharacters = async () => {
-      try {
-        let query = supabase.from("companions").select("*");
+  const fetchCharacters = async () => {
+    try {
+      let query = supabase.from("companions").select(`
+          *,
+          user_companion_interactions!left (liked, disliked, starred)
+        `);
 
-        if (selectedTheme !== "all") {
-          query = query.eq("theme", selectedTheme);
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-        setCharacters(data || []);
-      } catch (error) {
-        console.error("Error fetching characters:", error);
-      } finally {
-        setIsLoading(false);
+      if (selectedTheme !== "all") {
+        query = query.eq("theme", selectedTheme);
       }
-    };
 
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const transformedData = data.map((companion) => ({
+        ...companion,
+        user_interaction: companion.user_companion_interactions?.[0] || {
+          liked: false,
+          disliked: false,
+          starred: false,
+        },
+      }));
+
+      setCharacters(transformedData || []);
+    } catch (error) {
+      console.error("Error fetching characters:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchCharacters();
-  }, [selectedTheme]);
+  }, [selectedTheme, user]);
 
   if (isLoading) {
     return (
@@ -55,13 +70,19 @@ const CharacterGrid = ({ selectedTheme = "all" }: CharacterGridProps) => {
       {characters.map((character) => (
         <CharacterCard
           key={character.id}
+          id={character.id}
           name={character.name}
           avatar={character.avatar}
           description={character.description}
           theme={character.theme}
           rating={character.rating}
           conversations={character.conversations}
-          likes={character.likes}
+          likes_count={character.likes_count}
+          dislikes_count={character.dislikes_count}
+          stars_count={character.stars_count}
+          user_interaction={character.user_interaction}
+          onInteractionUpdate={fetchCharacters}
+          companion_link={character.companion_link}
         />
       ))}
     </div>

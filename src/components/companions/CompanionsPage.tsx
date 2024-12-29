@@ -9,6 +9,7 @@ import CharacterCard from "../gallery/CharacterCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Companion, Tag, TagCategory } from "@/types/companions";
+import { useAuth } from "@/lib/supabase-auth";
 import {
   Search,
   SlidersHorizontal,
@@ -23,12 +24,6 @@ import {
 } from "lucide-react";
 import Header from "../layout/Header";
 import Footer from "../layout/Footer";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 
 type Theme = "professional" | "casual" | "fantasy" | "all";
 type SortOption = "popular" | "newest" | "rating";
@@ -105,6 +100,7 @@ const newItemVariants = {
 };
 
 const CompanionsPage: React.FC = () => {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [allCompanions, setAllCompanions] = useState<Companion[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<Theme>("all");
@@ -117,51 +113,62 @@ const CompanionsPage: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
+  const fetchData = async () => {
+    try {
+      // Fetch companions with user interactions
+      const { data: companionsData, error: companionsError } = await supabase
+        .from("companions")
+        .select(
+          `
+          *,
+          companions_tags!inner(tag_id),
+          tags!inner(id, name, category_id, category:tag_categories(*)),
+          user_companion_interactions!left (liked, disliked, starred)
+        `,
+        )
+        .order("created_at", { ascending: false });
+
+      if (companionsError) throw companionsError;
+
+      // Transform the data to include user interactions
+      const transformedCompanions = companionsData?.map((companion) => ({
+        ...companion,
+        user_interaction: companion.user_companion_interactions?.[0] || {
+          liked: false,
+          disliked: false,
+          starred: false,
+        },
+      }));
+
+      // Fetch categories
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from("tag_categories")
+        .select("*")
+        .order("name");
+
+      if (categoriesError) throw categoriesError;
+
+      // Fetch tags
+      const { data: tagsData, error: tagsError } = await supabase
+        .from("tags")
+        .select("*, category:tag_categories(*)")
+        .order("name");
+
+      if (tagsError) throw tagsError;
+
+      setAllCompanions(transformedCompanions || []);
+      setCategories(categoriesData || []);
+      setTags(tagsData || []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch companions
-        const { data: companionsData, error: companionsError } = await supabase
-          .from("companions")
-          .select(
-            `
-            *,
-            companions_tags!inner(tag_id),
-            tags!inner(id, name, category_id, category:tag_categories(*))
-          `,
-          )
-          .order("created_at", { ascending: false });
-
-        if (companionsError) throw companionsError;
-
-        // Fetch categories
-        const { data: categoriesData, error: categoriesError } = await supabase
-          .from("tag_categories")
-          .select("*")
-          .order("name");
-
-        if (categoriesError) throw categoriesError;
-
-        // Fetch tags
-        const { data: tagsData, error: tagsError } = await supabase
-          .from("tags")
-          .select("*, category:tag_categories(*)")
-          .order("name");
-
-        if (tagsError) throw tagsError;
-
-        setAllCompanions(companionsData || []);
-        setCategories(categoriesData || []);
-        setTags(tagsData || []);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setInitialLoading(false);
-      }
-    };
-
     fetchData();
-  }, []);
+  }, [user]);
 
   const groupedTags = tags.reduce(
     (acc, tag) => {
@@ -190,7 +197,7 @@ const CompanionsPage: React.FC = () => {
     .sort((a, b) => {
       switch (sortBy) {
         case "popular":
-          return b.likes - a.likes;
+          return b.likes_count - a.likes_count;
         case "newest":
           return (
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -355,16 +362,19 @@ const CompanionsPage: React.FC = () => {
                               className={`hover:scale-105 transition-transform duration-200 ${index >= newItemsStartIndex ? "relative" : ""}`}
                             >
                               <CharacterCard
+                                id={companion.id}
                                 name={companion.name}
                                 avatar={companion.avatar}
                                 description={companion.description}
                                 companion_link={companion.companion_link}
                                 theme={companion.theme}
                                 rating={companion.rating}
-                                conversations={formatNumber(
-                                  companion.conversations,
-                                )}
-                                likes={formatNumber(companion.likes)}
+                                conversations={companion.conversations}
+                                likes_count={companion.likes_count}
+                                dislikes_count={companion.dislikes_count}
+                                stars_count={companion.stars_count}
+                                user_interaction={companion.user_interaction}
+                                onInteractionUpdate={fetchData}
                               />
                             </motion.div>
                           ))}
@@ -414,16 +424,19 @@ const CompanionsPage: React.FC = () => {
                             className="hover:scale-105 transition-transform duration-200"
                           >
                             <CharacterCard
+                              id={companion.id}
                               name={companion.name}
                               avatar={companion.avatar}
                               description={companion.description}
                               companion_link={companion.companion_link}
                               theme={companion.theme}
                               rating={companion.rating}
-                              conversations={formatNumber(
-                                companion.conversations,
-                              )}
-                              likes={formatNumber(companion.likes)}
+                              conversations={companion.conversations}
+                              likes_count={companion.likes_count}
+                              dislikes_count={companion.dislikes_count}
+                              stars_count={companion.stars_count}
+                              user_interaction={companion.user_interaction}
+                              onInteractionUpdate={fetchData}
                             />
                           </motion.div>
                         ))}
@@ -454,16 +467,19 @@ const CompanionsPage: React.FC = () => {
                               className="hover:scale-105 transition-transform duration-200"
                             >
                               <CharacterCard
+                                id={companion.id}
                                 name={companion.name}
                                 avatar={companion.avatar}
                                 description={companion.description}
                                 companion_link={companion.companion_link}
                                 theme={companion.theme}
                                 rating={companion.rating}
-                                conversations={formatNumber(
-                                  companion.conversations,
-                                )}
-                                likes={formatNumber(companion.likes)}
+                                conversations={companion.conversations}
+                                likes_count={companion.likes_count}
+                                dislikes_count={companion.dislikes_count}
+                                stars_count={companion.stars_count}
+                                user_interaction={companion.user_interaction}
+                                onInteractionUpdate={fetchData}
                               />
                             </motion.div>
                           ))}

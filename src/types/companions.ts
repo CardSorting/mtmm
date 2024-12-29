@@ -23,11 +23,18 @@ export interface Companion {
   rating: number;
   companion_link: string;
   conversations: number;
-  likes: number;
+  likes_count: number;
+  dislikes_count: number;
+  stars_count: number;
   featured: boolean;
   created_at: string;
   updated_at: string;
   tags?: Tag[];
+  user_interaction?: {
+    liked: boolean;
+    disliked: boolean;
+    starred: boolean;
+  };
 }
 
 export interface CompanionFormData {
