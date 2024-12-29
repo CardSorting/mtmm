@@ -1,10 +1,19 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/lib/supabase-auth";
+import { useAuth, useRole } from "@/lib/supabase-auth";
 import { Loader2 } from "lucide-react";
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+type ProtectedRouteProps = {
+  children: React.ReactNode;
+  allowedRoles?: ("admin" | "user")[];
+};
+
+export function ProtectedRoute({
+  children,
+  allowedRoles,
+}: ProtectedRouteProps) {
+  const { user, userProfile, loading } = useAuth();
   const location = useLocation();
+  const role = useRole();
 
   if (loading) {
     return (
@@ -16,6 +25,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (allowedRoles && (!role || !allowedRoles.includes(role))) {
+    // Redirect to appropriate dashboard based on role
+    if (role === "admin") {
+      return <Navigate to="/admin" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

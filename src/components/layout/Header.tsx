@@ -11,7 +11,16 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
-import { Users, Sparkles, Briefcase, Wand2, Filter } from "lucide-react";
+import { Users, Sparkles, Briefcase, Wand2, Filter, LogIn } from "lucide-react";
+import { useAuth } from "@/lib/supabase-auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { supabase } from "@/lib/supabase";
 
 const companionsLinks = [
   {
@@ -68,7 +77,12 @@ ListItem.displayName = "ListItem";
 
 const Header = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -119,7 +133,54 @@ const Header = () => {
           </NavigationMenu>
         </div>
         <div className="flex items-center gap-4">
-          <Button className="bg-blue-600 hover:bg-blue-700">Get Started</Button>
+          {user ? (
+            <div className="flex items-center gap-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="relative h-8 w-8 rounded-full"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={user.user_metadata?.avatar_url}
+                        alt={user.email}
+                      />
+                      <AvatarFallback>
+                        {user.email?.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuItem className="flex-col items-start">
+                    <div className="text-sm font-medium">{user.email}</div>
+                    <div className="text-xs text-gray-500">Administrator</div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/companions">Dashboard</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                className="text-gray-700"
+                onClick={() => (window.location.href = "/login")}
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign in
+              </Button>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                Get Started
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </header>

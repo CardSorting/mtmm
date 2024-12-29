@@ -7,9 +7,15 @@ import CharacterCard from "../gallery/CharacterCard";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { Companion, Tag, TagCategory } from "@/types/companions";
-import { Search, X, Filter } from "lucide-react";
+import { Search, X, Filter, ChevronDown } from "lucide-react";
 import Header from "../layout/Header";
 import Footer from "../layout/Footer";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const ExplorePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,6 +24,8 @@ const ExplorePage: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const [showAllTags, setShowAllTags] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,6 +63,11 @@ const ExplorePage: React.FC = () => {
         setAllCompanions(companionsData || []);
         setCategories(categoriesData || []);
         setTags(tagsData || []);
+
+        // Set first category as expanded by default
+        if (categoriesData && categoriesData.length > 0) {
+          setExpandedCategories([categoriesData[0].id]);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -95,6 +108,23 @@ const ExplorePage: React.FC = () => {
     );
   };
 
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories((prev) =>
+      prev.includes(categoryId)
+        ? prev.filter((id) => id !== categoryId)
+        : [...prev, categoryId],
+    );
+  };
+
+  const toggleShowAllTags = (categoryId: string) => {
+    setShowAllTags((prev) => ({
+      ...prev,
+      [categoryId]: !prev[categoryId],
+    }));
+  };
+
+  const MAX_VISIBLE_TAGS = 8;
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Header />
@@ -120,52 +150,103 @@ const ExplorePage: React.FC = () => {
         </div>
 
         <div className="container mx-auto px-4 py-12">
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
+          {/* Categories Section */}
+          <div className="mb-12">
+            <div className="flex items-center gap-2 mb-6">
               <Filter className="w-5 h-5" />
-              <h2 className="text-lg font-semibold">Browse by Category</h2>
+              <h2 className="text-2xl font-semibold">Browse by Category</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-6">
               {categories.map((category) => {
                 const categoryTags = groupedTags[category.id] || [];
                 if (categoryTags.length === 0) return null;
 
+                const isExpanded = expandedCategories.includes(category.id);
+                const showAll = showAllTags[category.id];
+                const visibleTags = showAll
+                  ? categoryTags
+                  : categoryTags.slice(0, MAX_VISIBLE_TAGS);
+                const hasMoreTags = categoryTags.length > MAX_VISIBLE_TAGS;
+
+                const selectedCount = categoryTags.filter((tag) =>
+                  selectedTags.includes(tag.id),
+                ).length;
+
                 return (
                   <div
                     key={category.id}
-                    className="bg-white rounded-lg border p-4 space-y-3"
+                    className="bg-white rounded-xl border shadow-sm overflow-hidden"
                   >
-                    <h3 className="font-medium">{category.name}</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {categoryTags.map((tag) => (
-                        <Badge
-                          key={tag.id}
-                          variant={
-                            selectedTags.includes(tag.id)
-                              ? "default"
-                              : "secondary"
-                          }
-                          className="cursor-pointer hover:bg-gray-100"
-                          onClick={() => toggleTag(tag.id)}
-                        >
-                          {tag.name}
-                        </Badge>
-                      ))}
-                    </div>
+                    <button
+                      onClick={() => toggleCategory(category.id)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-medium">{category.name}</h3>
+                        {selectedCount > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {selectedCount} selected
+                          </Badge>
+                        )}
+                      </div>
+                      <ChevronDown
+                        className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="p-4 bg-gray-50 border-t">
+                        <div className="flex flex-wrap gap-2">
+                          {visibleTags.map((tag) => (
+                            <Badge
+                              key={tag.id}
+                              variant={
+                                selectedTags.includes(tag.id)
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className="cursor-pointer hover:bg-gray-100 text-sm py-1 px-3"
+                              onClick={() => toggleTag(tag.id)}
+                            >
+                              {tag.name}
+                            </Badge>
+                          ))}
+                        </div>
+                        {hasMoreTags && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleShowAllTags(category.id)}
+                            className="mt-3 text-sm font-normal"
+                          >
+                            {showAll
+                              ? "Show less"
+                              : `Show ${categoryTags.length - MAX_VISIBLE_TAGS} more tags`}
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
 
+          {/* Active Filters */}
           {selectedTags.length > 0 && (
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Active Filters</h2>
+            <div className="mb-8 bg-white rounded-xl border p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Active Filters</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {selectedTags.length}
+                  </Badge>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setSelectedTags([])}
+                  className="text-sm font-normal h-8"
                 >
                   Clear all
                 </Button>
@@ -177,11 +258,11 @@ const ExplorePage: React.FC = () => {
                     <Badge
                       key={tagId}
                       variant="default"
-                      className="cursor-pointer"
+                      className="cursor-pointer group pr-2"
                       onClick={() => toggleTag(tagId)}
                     >
                       {tag?.name}
-                      <X className="w-3 h-3 ml-2" />
+                      <X className="w-3 h-3 ml-1 opacity-50 group-hover:opacity-100" />
                     </Badge>
                   );
                 })}
@@ -189,6 +270,7 @@ const ExplorePage: React.FC = () => {
             </div>
           )}
 
+          {/* Results Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filteredCompanions.map((companion) => (
               <motion.div
