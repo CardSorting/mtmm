@@ -17,6 +17,7 @@ interface CharacterCardProps {
   name?: string;
   avatar?: string;
   description?: string;
+  companion_link?: string;
   theme?: "professional" | "casual" | "fantasy";
   rating?: number;
   conversations?: number;
@@ -27,6 +28,7 @@ const CharacterCard = ({
   name = "AI Assistant",
   avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=default",
   description = "A helpful AI companion ready to assist with various tasks and engage in meaningful conversations.",
+  companion_link = "#",
   theme = "professional",
   rating = 4.5,
   conversations = 1234,
@@ -79,7 +81,12 @@ const CharacterCard = ({
               <span className="text-sm">{likes}</span>
             </div>
           </div>
-          <Button className="w-full group" variant="outline">
+          <Button
+            className="w-full group"
+            variant="outline"
+            onClick={() => window.open(companion_link, "_blank")}
+            disabled={!companion_link || companion_link === "#"}
+          >
             Chat Now
             <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Button>

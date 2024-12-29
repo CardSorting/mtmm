@@ -21,6 +21,7 @@ export interface Companion {
   description: string;
   theme: CompanionTheme;
   rating: number;
+  companion_link: string;
   conversations: number;
   likes: number;
   featured: boolean;
@@ -33,6 +34,7 @@ export interface CompanionFormData {
   name: string;
   avatar: string;
   description: string;
+  companion_link: string;
   theme: CompanionTheme;
   featured: boolean;
   tags?: string[];

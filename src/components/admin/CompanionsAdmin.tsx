@@ -50,6 +50,7 @@ const CompanionsAdmin = () => {
     name: "",
     avatar: "",
     description: "",
+    companion_link: "",
     theme: "professional",
     featured: false,
     tags: [],
@@ -212,6 +213,7 @@ const CompanionsAdmin = () => {
             name: formData.name,
             avatar: formData.avatar,
             description: formData.description,
+            companion_link: formData.companion_link,
             theme: formData.theme,
             featured: formData.featured,
           })
@@ -251,6 +253,7 @@ const CompanionsAdmin = () => {
               name: formData.name,
               avatar: formData.avatar,
               description: formData.description,
+              companion_link: formData.companion_link,
               theme: formData.theme,
               featured: formData.featured,
             },
@@ -286,6 +289,7 @@ const CompanionsAdmin = () => {
         name: "",
         avatar: "",
         description: "",
+        companion_link: "",
         theme: "professional",
         featured: false,
         tags: [],
@@ -309,6 +313,7 @@ const CompanionsAdmin = () => {
       name: companion.name,
       avatar: companion.avatar,
       description: companion.description,
+      companion_link: companion.companion_link,
       theme: companion.theme,
       featured: companion.featured,
       tags: companion.tags?.map((tag) => tag.id) || [],
@@ -364,6 +369,7 @@ const CompanionsAdmin = () => {
                   name: "",
                   avatar: "",
                   description: "",
+                  companion_link: "",
                   theme: "professional",
                   featured: false,
                   tags: [],
@@ -400,6 +406,19 @@ const CompanionsAdmin = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, avatar: e.target.value })
                   }
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="companion_link">Companion Link</Label>
+                <Input
+                  id="companion_link"
+                  value={formData.companion_link}
+                  onChange={(e) =>
+                    setFormData({ ...formData, companion_link: e.target.value })
+                  }
+                  placeholder="https://example.com/chat/companion-id"
                   required
                 />
               </div>

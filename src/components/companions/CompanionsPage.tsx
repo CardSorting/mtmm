@@ -379,6 +379,7 @@ const CompanionsPage: React.FC = () => {
                             name={companion.name}
                             avatar={companion.avatar}
                             description={companion.description}
+                            companion_link={companion.companion_link}
                             theme={companion.theme}
                             rating={companion.rating}
                             conversations={formatNumber(
@@ -437,6 +438,7 @@ const CompanionsPage: React.FC = () => {
                           name={companion.name}
                           avatar={companion.avatar}
                           description={companion.description}
+                          companion_link={companion.companion_link}
                           theme={companion.theme}
                           rating={companion.rating}
                           conversations={formatNumber(companion.conversations)}
@@ -474,6 +476,7 @@ const CompanionsPage: React.FC = () => {
                             name={companion.name}
                             avatar={companion.avatar}
                             description={companion.description}
+                            companion_link={companion.companion_link}
                             theme={companion.theme}
                             rating={companion.rating}
                             conversations={formatNumber(
