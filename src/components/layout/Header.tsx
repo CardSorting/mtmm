@@ -126,7 +126,6 @@ const Header = () => {
           </NavigationMenu>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="ghost">Sign In</Button>
           <Button className="bg-blue-600 hover:bg-blue-700">Get Started</Button>
         </div>
       </div>
