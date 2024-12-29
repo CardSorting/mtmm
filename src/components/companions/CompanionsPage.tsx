@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterCard from "../gallery/CharacterCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
-import { Companion } from "@/types/companions";
+import { Companion, Tag, TagCategory } from "@/types/companions";
 import {
   Search,
   SlidersHorizontal,
@@ -16,31 +16,28 @@ import {
   Users,
   Wand2,
   Sparkles,
-  Brain,
-  Code,
-  Palette,
-  BookOpen,
-  Microscope,
-  Headphones,
-  Heart,
-  Globe,
   Star,
-  Clock,
-  Zap,
-  DollarSign,
   Loader2,
 } from "lucide-react";
 import Header from "../layout/Header";
 import Footer from "../layout/Footer";
 
-type Category = "all" | "professional" | "casual" | "fantasy";
+type Theme = "professional" | "casual" | "fantasy" | "all";
 type SortOption = "popular" | "newest" | "rating";
 
-const categories: { value: Category; label: string }[] = [
-  { value: "all", label: "All Companions" },
-  { value: "professional", label: "Professional" },
-  { value: "casual", label: "Casual" },
-  { value: "fantasy", label: "Fantasy" },
+const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
+  {
+    value: "all",
+    label: "All Companions",
+    icon: <Sparkles className="w-5 h-5" />,
+  },
+  {
+    value: "professional",
+    label: "Professional",
+    icon: <Briefcase className="w-5 h-5" />,
+  },
+  { value: "casual", label: "Casual", icon: <Users className="w-5 h-5" /> },
+  { value: "fantasy", label: "Fantasy", icon: <Wand2 className="w-5 h-5" /> },
 ];
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -48,13 +45,6 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: "newest", label: "Newest First" },
   { value: "rating", label: "Highest Rated" },
 ];
-
-const categoryIcons = {
-  professional: <Briefcase className="w-5 h-5" />,
-  casual: <Users className="w-5 h-5" />,
-  fantasy: <Wand2 className="w-5 h-5" />,
-  all: <Sparkles className="w-5 h-5" />,
-};
 
 const formatNumber = (num: number): string => {
   if (num >= 1000000) {
@@ -109,43 +99,85 @@ const newItemVariants = {
 const CompanionsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [allCompanions, setAllCompanions] = useState<Companion[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category>("all");
+  const [selectedTheme, setSelectedTheme] = useState<Theme>("all");
   const [sortBy, setSortBy] = useState<SortOption>("popular");
-  const [priceFilter, setPriceFilter] = useState<string[]>([]);
-  const [languageFilter, setLanguageFilter] = useState<string[]>([]);
   const [displayedItems, setDisplayedItems] = useState(ITEMS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(false);
   const [newItemsStartIndex, setNewItemsStartIndex] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [categories, setCategories] = useState<TagCategory[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   useEffect(() => {
-    const fetchCompanions = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch companions
+        const { data: companionsData, error: companionsError } = await supabase
           .from("companions")
-          .select("*")
+          .select(
+            `
+            *,
+            companions_tags!inner(tag_id),
+            tags!inner(id, name, category_id, category:tag_categories(*))
+          `,
+          )
           .order("created_at", { ascending: false });
 
-        if (error) throw error;
-        setAllCompanions(data || []);
+        if (companionsError) throw companionsError;
+
+        // Fetch categories
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from("tag_categories")
+          .select("*")
+          .order("name");
+
+        if (categoriesError) throw categoriesError;
+
+        // Fetch tags
+        const { data: tagsData, error: tagsError } = await supabase
+          .from("tags")
+          .select("*, category:tag_categories(*)")
+          .order("name");
+
+        if (tagsError) throw tagsError;
+
+        setAllCompanions(companionsData || []);
+        setCategories(categoriesData || []);
+        setTags(tagsData || []);
       } catch (error) {
-        console.error("Error fetching companions:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setInitialLoading(false);
       }
     };
 
-    fetchCompanions();
+    fetchData();
   }, []);
+
+  const groupedTags = tags.reduce(
+    (acc, tag) => {
+      const categoryId = tag.category_id;
+      if (!acc[categoryId]) {
+        acc[categoryId] = [];
+      }
+      acc[categoryId].push(tag);
+      return acc;
+    },
+    {} as Record<string, Tag[]>,
+  );
 
   const filteredCompanions = allCompanions
     .filter((companion) => {
       const matchesSearch = companion.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        selectedCategory === "all" || companion.theme === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const matchesTheme =
+        selectedTheme === "all" || companion.theme === selectedTheme;
+      const matchesTags =
+        selectedTags.length === 0 ||
+        companion.tags?.some((tag) => selectedTags.includes(tag.id));
+      return matchesSearch && matchesTheme && matchesTags;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -168,7 +200,7 @@ const CompanionsPage: React.FC = () => {
   useEffect(() => {
     setDisplayedItems(ITEMS_PER_PAGE);
     setNewItemsStartIndex(0);
-  }, [searchQuery, selectedCategory, sortBy]);
+  }, [searchQuery, selectedTheme, sortBy, selectedTags]);
 
   const handleShowMore = () => {
     setIsLoading(true);
@@ -179,6 +211,14 @@ const CompanionsPage: React.FC = () => {
       );
       setIsLoading(false);
     }, 800);
+  };
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId],
+    );
   };
 
   if (initialLoading) {
@@ -223,24 +263,22 @@ const CompanionsPage: React.FC = () => {
 
                 <div>
                   <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <SlidersHorizontal className="w-4 h-4" /> Categories
+                    <SlidersHorizontal className="w-4 h-4" /> Themes
                   </h4>
                   <div className="space-y-2">
-                    {categories.map((category) => (
+                    {themes.map((theme) => (
                       <Button
-                        key={category.value}
+                        key={theme.value}
                         variant={
-                          selectedCategory === category.value
-                            ? "default"
-                            : "ghost"
+                          selectedTheme === theme.value ? "default" : "ghost"
                         }
-                        onClick={() => setSelectedCategory(category.value)}
+                        onClick={() => setSelectedTheme(theme.value)}
                         className="w-full justify-start"
                         size="sm"
                       >
                         <div className="flex items-center gap-2">
-                          {categoryIcons[category.value]}
-                          {category.label}
+                          {theme.icon}
+                          {theme.label}
                         </div>
                       </Button>
                     ))}
@@ -270,75 +308,37 @@ const CompanionsPage: React.FC = () => {
 
                 <Separator />
 
-                <div>
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4" /> Pricing
-                  </h4>
-                  <div className="space-y-2">
-                    {["Free", "Premium", "Enterprise"].map((price) => (
-                      <Button
-                        key={price}
-                        variant={
-                          priceFilter.includes(price.toLowerCase())
-                            ? "default"
-                            : "ghost"
-                        }
-                        onClick={() => {
-                          setPriceFilter((prev) =>
-                            prev.includes(price.toLowerCase())
-                              ? prev.filter((p) => p !== price.toLowerCase())
-                              : [...prev, price.toLowerCase()],
-                          );
-                        }}
-                        className="w-full justify-start"
-                        size="sm"
-                      >
-                        {price}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+                {/* Tag Categories */}
+                {categories.map((category) => {
+                  const categoryTags = groupedTags[category.id] || [];
+                  if (categoryTags.length === 0) return null;
 
-                <Separator />
-
-                <div>
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <Globe className="w-4 h-4" /> Languages
-                  </h4>
-                  <ScrollArea className="h-[120px]">
-                    <div className="space-y-2 pr-4">
-                      {[
-                        "English",
-                        "Spanish",
-                        "French",
-                        "German",
-                        "Italian",
-                        "Chinese",
-                        "Japanese",
-                      ].map((lang) => (
-                        <Button
-                          key={lang}
-                          variant={
-                            languageFilter.includes(lang.toLowerCase())
-                              ? "default"
-                              : "ghost"
-                          }
-                          onClick={() => {
-                            setLanguageFilter((prev) =>
-                              prev.includes(lang.toLowerCase())
-                                ? prev.filter((l) => l !== lang.toLowerCase())
-                                : [...prev, lang.toLowerCase()],
-                            );
-                          }}
-                          className="w-full justify-start"
-                          size="sm"
-                        >
-                          {lang}
-                        </Button>
-                      ))}
+                  return (
+                    <div key={category.id}>
+                      <h4 className="font-medium mb-3">{category.name}</h4>
+                      <ScrollArea className="h-[120px]">
+                        <div className="space-y-2 pr-4">
+                          {categoryTags.map((tag) => (
+                            <Button
+                              key={tag.id}
+                              variant={
+                                selectedTags.includes(tag.id)
+                                  ? "default"
+                                  : "ghost"
+                              }
+                              onClick={() => toggleTag(tag.id)}
+                              className="w-full justify-start"
+                              size="sm"
+                            >
+                              {tag.name}
+                            </Button>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      <Separator className="my-4" />
                     </div>
-                  </ScrollArea>
-                </div>
+                  );
+                })}
               </div>
             </div>
 
