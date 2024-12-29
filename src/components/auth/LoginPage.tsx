@@ -1,17 +1,24 @@
 import { useState, FormEvent } from "react";
 import { useNavigate, useLocation, Location } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "@/components/ui/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+import { auth } from "../../lib/firebase";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { toast } from "../ui/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-} from "@/components/ui/card";
+} from "../ui/card";
 import {
   Github,
   Loader2,
@@ -24,7 +31,7 @@ import {
 } from "lucide-react";
 
 type AuthTab = "login" | "register" | "forgot-password";
-type SocialProvider = "GitHub" | "Twitter";
+type SocialProvider = "Google" | "GitHub" | "Twitter";
 
 interface LocationState {
   from: Location;
@@ -51,7 +58,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<AuthTab>("login");
 
-  // Form states with proper typing
   const [formState, setFormState] = useState<FormState>({
     login: { email: "", password: "" },
     register: { email: "", password: "", confirmPassword: "" },
@@ -66,14 +72,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formState.login.email,
-        password: formState.login.password,
-      });
-
-      if (error) throw error;
-      if (!data?.user) throw new Error("No user returned from login");
-
+      await signInWithEmailAndPassword(
+        auth,
+        formState.login.email,
+        formState.login.password
+      );
       toast({ title: "Success", description: "Logged in successfully" });
       navigate(from, { replace: true });
     } catch (error: unknown) {
@@ -106,19 +109,12 @@ export default function LoginPage() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
+      await createUserWithEmailAndPassword(auth, email, password);
       toast({
         title: "Success",
         description:
           "Registration successful! Please check your email to verify your account.",
       });
-
       setActiveTab("login");
     } catch (error: unknown) {
       toast({
@@ -137,20 +133,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        formState.reset.email,
-        {
-          redirectTo: `${window.location.origin}/reset-password`,
-        },
-      );
-
-      if (error) throw error;
-
+      await sendPasswordResetEmail(auth, formState.reset.email);
       toast({
         title: "Success",
         description: "Password reset email sent. Please check your inbox.",
       });
-
       setActiveTab("login");
     } catch (error: unknown) {
       toast({
@@ -164,11 +151,33 @@ export default function LoginPage() {
     }
   };
 
-  const handleSocialLogin = (provider: SocialProvider): void => {
-    toast({
-      title: "Social Login",
-      description: `${provider} login is not available in demo mode`,
-    });
+  const handleSocialLogin = async (provider: SocialProvider) => {
+    setLoading(true);
+    try {
+      let authProvider;
+      switch (provider) {
+        case "Google":
+          authProvider = new GoogleAuthProvider();
+          break;
+        // Add cases for other providers as needed
+        default:
+          throw new Error("Unsupported provider");
+      }
+
+      await signInWithPopup(auth, authProvider);
+      toast({ title: "Success", description: "Logged in successfully" });
+      navigate(from, { replace: true });
+    } catch (error: unknown) {
+      console.error("Social login error:", error);
+      toast({
+        title: "Login Failed",
+        description:
+          error instanceof Error ? error.message : "Social login failed",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateFormState = (
@@ -219,21 +228,21 @@ export default function LoginPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <Button
                     variant="outline"
-                    onClick={() => handleSocialLogin("GitHub")}
+                    onClick={() => handleSocialLogin("Google")}
                     className="w-full"
                     type="button"
                   >
                     <Github className="mr-2 h-4 w-4" />
-                    GitHub
+                    Google
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleSocialLogin("Twitter")}
+                    onClick={() => handleSocialLogin("GitHub")}
                     className="w-full"
                     type="button"
                   >
                     <Twitter className="mr-2 h-4 w-4" />
-                    Twitter
+                    GitHub
                   </Button>
                 </div>
 

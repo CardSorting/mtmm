@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth, useRole } from "@/lib/supabase-auth";
+import { useAuth } from "./AuthContext";
 import { Loader2 } from "lucide-react";
 
 type ProtectedRouteProps = {
@@ -11,9 +11,8 @@ export function ProtectedRoute({
   children,
   allowedRoles,
 }: ProtectedRouteProps) {
-  const { user, userProfile, loading } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
-  const role = useRole();
 
   if (loading) {
     return (
@@ -27,11 +26,8 @@ export function ProtectedRoute({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && (!role || !allowedRoles.includes(role))) {
-    // Redirect to appropriate dashboard based on role
-    if (role === "admin") {
-      return <Navigate to="/admin" replace />;
-    }
+  // TODO: Implement role checking with Firebase custom claims
+  if (allowedRoles) {
     return <Navigate to="/dashboard" replace />;
   }
 

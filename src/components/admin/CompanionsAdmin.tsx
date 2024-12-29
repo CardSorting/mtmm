@@ -1,24 +1,36 @@
 import React, { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "../../lib/firebase";
+import {
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  where,
+  writeBatch,
+} from "firebase/firestore";
 import {
   Companion,
   CompanionFormData,
   Tag,
   TagCategory,
-} from "@/types/companions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+} from "../../types/companions";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
+import { Badge } from "../../components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+} from "../../components/ui/select";
+import { Switch } from "../../components/ui/switch";
+import { Label } from "../../components/ui/label";
 import {
   Table,
   TableBody,
@@ -26,16 +38,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "../../components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "../../components/ui/dialog";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "../../components/ui/use-toast";
 
 const CompanionsAdmin = () => {
   const [companions, setCompanions] = useState<Companion[]>([]);
@@ -61,14 +73,18 @@ const CompanionsAdmin = () => {
 
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from("tag_categories")
-        .select("*")
-        .order("name");
-
-      if (error) throw error;
-      setCategories(data);
-      if (data.length > 0) setSelectedCategory(data[0].id);
+      const categoriesQuery = query(
+        collection(db, "tag_categories"),
+        orderBy("name")
+      );
+      const categoriesSnapshot = await getDocs(categoriesQuery);
+      const categoriesData = categoriesSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as TagCategory[];
+      
+      setCategories(categoriesData);
+      if (categoriesData.length > 0) setSelectedCategory(categoriesData[0].id);
     } catch (error) {
       console.error("Error fetching categories:", error);
       toast({
@@ -81,13 +97,26 @@ const CompanionsAdmin = () => {
 
   const fetchTags = async () => {
     try {
-      const { data, error } = await supabase
-        .from("tags")
-        .select("*, category:tag_categories(*)")
-        .order("name");
-
-      if (error) throw error;
-      setTags(data);
+      const tagsQuery = query(collection(db, "tags"), orderBy("name"));
+      const tagsSnapshot = await getDocs(tagsQuery);
+      const tagsData = await Promise.all(
+        tagsSnapshot.docs.map(async (doc) => {
+          const tagData = doc.data();
+          const categoryDoc = await getDocs(
+            query(
+              collection(db, "tag_categories"),
+              where("id", "==", tagData.category_id)
+            )
+          );
+          return {
+            id: doc.id,
+            ...tagData,
+            category: categoryDoc.docs[0]?.data() || null,
+          };
+        })
+      ) as Tag[];
+      
+      setTags(tagsData);
     } catch (error) {
       console.error("Error fetching tags:", error);
       toast({
@@ -102,17 +131,20 @@ const CompanionsAdmin = () => {
     if (!newCategory.trim()) return;
 
     try {
-      const { data, error } = await supabase
-        .from("tag_categories")
-        .insert([{ name: newCategory.trim() }])
-        .select()
-        .single();
+      const docRef = await addDoc(collection(db, "tag_categories"), {
+        name: newCategory.trim(),
+        created_at: new Date().toISOString(),
+      });
 
-      if (error) throw error;
+      const newCategoryData = {
+        id: docRef.id,
+        name: newCategory.trim(),
+        created_at: new Date().toISOString(),
+      };
 
-      setCategories([...categories, data]);
+      setCategories([...categories, newCategoryData]);
       setNewCategory("");
-      setSelectedCategory(data.id);
+      setSelectedCategory(docRef.id);
       toast({
         title: "Success",
         description: "Category created successfully",
@@ -129,26 +161,51 @@ const CompanionsAdmin = () => {
 
   const fetchCompanions = async () => {
     try {
-      const { data, error } = await supabase
-        .from("companions")
-        .select(
-          `
-          *,
-          companions_tags!inner(tag_id),
-          tags!inner(id, name, category_id, category:tag_categories(*))
-        `,
-        )
-        .order("created_at", { ascending: false });
+      const companionsQuery = query(
+        collection(db, "companions"),
+        orderBy("created_at", "desc")
+      );
+      const companionsSnapshot = await getDocs(companionsQuery);
+      const companionsData = await Promise.all(
+        companionsSnapshot.docs.map(async (doc) => {
+          const companionData = doc.data();
+          const companionTagsQuery = query(
+            collection(db, "companions_tags"),
+            where("companion_id", "==", doc.id)
+          );
+          const companionTagsSnapshot = await getDocs(companionTagsQuery);
+          const tagIds = companionTagsSnapshot.docs.map((tagDoc) => tagDoc.data().tag_id);
+          const tagsQuery = query(
+            collection(db, "tags"),
+            where("id", "in", tagIds)
+          );
+          const tagsSnapshot = await getDocs(tagsQuery);
+          const tags = await Promise.all(
+            tagsSnapshot.docs.map(async (tagDoc) => {
+              const tagData = tagDoc.data();
+              const categoryQuery = query(
+                collection(db, "tag_categories"),
+                where("id", "==", tagData.category_id)
+              );
+              const categorySnapshot = await getDocs(categoryQuery);
+              
+              return {
+                id: tagDoc.id,
+                ...tagData,
+                category: categorySnapshot.docs[0]?.data() || null,
+              };
+            })
+          );
 
-      if (error) throw error;
+          return {
+            id: doc.id,
+            ...companionData,
+            tags,
+          } as Companion;
+        })
+      );
 
-      // Transform the data to match our Companion type
-      const transformedData = data.map((companion: any) => ({
-        ...companion,
-        tags: companion.tags,
-      }));
-
-      setCompanions(transformedData);
+      setCompanions(companionsData);
     } catch (error) {
       console.error("Error fetching companions:", error);
       toast({
@@ -171,20 +228,26 @@ const CompanionsAdmin = () => {
     if (!newTag.trim() || !selectedCategory) return;
 
     try {
-      const { data, error } = await supabase
-        .from("tags")
-        .insert([
-          {
-            name: newTag.trim(),
-            category_id: selectedCategory,
-          },
-        ])
-        .select("*, category:tag_categories(*)")
-        .single();
+      const docRef = await addDoc(collection(db, "tags"), {
+        name: newTag.trim(),
+        category_id: selectedCategory,
+        created_at: new Date().toISOString(),
+      });
 
-      if (error) throw error;
+      const categoryQuery = query(
+        collection(db, "tag_categories"),
+        where("id", "==", selectedCategory)
+      );
+      const categorySnapshot = await getDocs(categoryQuery);
+      const newTagData = {
+        id: docRef.id,
+        name: newTag.trim(),
+        category_id: selectedCategory,
+        created_at: new Date().toISOString(),
+        category: categorySnapshot.docs[0]?.data() || null,
+      } as Tag;
 
-      setTags([...tags, data]);
+      setTags([...tags, newTagData]);
       setNewTag("");
       toast({
         title: "Success",
@@ -207,38 +270,39 @@ const CompanionsAdmin = () => {
     try {
       if (editingCompanion) {
         // Update companion
-        const { error: companionError } = await supabase
-          .from("companions")
-          .update({
-            name: formData.name,
-            avatar: formData.avatar,
-            description: formData.description,
-            companion_link: formData.companion_link,
-            theme: formData.theme,
-            featured: formData.featured,
-          })
-          .eq("id", editingCompanion.id);
-
-        if (companionError) throw companionError;
+        await updateDoc(doc(db, "companions", editingCompanion.id), {
+          name: formData.name,
+          avatar: formData.avatar,
+          description: formData.description,
+          companion_link: formData.companion_link,
+          theme: formData.theme,
+          featured: formData.featured,
+          updated_at: new Date().toISOString(),
+        });
 
         // Update tags
-        await supabase
-          .from("companions_tags")
-          .delete()
-          .eq("companion_id", editingCompanion.id);
+        const batch = writeBatch(db);
+        const companionTagsQuery = query(
+          collection(db, "companions_tags"),
+          where("companion_id", "==", editingCompanion.id)
+        );
+        const companionTagsSnapshot = await getDocs(companionTagsQuery);
+
+        companionTagsSnapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
 
         if (formData.tags && formData.tags.length > 0) {
-          const { error: tagsError } = await supabase
-            .from("companions_tags")
-            .insert(
-              formData.tags.map((tagId) => ({
-                companion_id: editingCompanion.id,
-                tag_id: tagId,
-              })),
-            );
-
-          if (tagsError) throw tagsError;
+          formData.tags.forEach((tagId) => {
+            const newTagRef = doc(collection(db, "companions_tags"));
+            batch.set(newTagRef, {
+              companion_id: editingCompanion.id,
+              tag_id: tagId,
+            });
+          });
         }
+
+        await batch.commit();
 
         toast({
           title: "Success",
@@ -246,35 +310,33 @@ const CompanionsAdmin = () => {
         });
       } else {
         // Create new companion
-        const { data: companion, error: companionError } = await supabase
-          .from("companions")
-          .insert([
-            {
-              name: formData.name,
-              avatar: formData.avatar,
-              description: formData.description,
-              companion_link: formData.companion_link,
-              theme: formData.theme,
-              featured: formData.featured,
-            },
-          ])
-          .select()
-          .single();
-
-        if (companionError) throw companionError;
+        const companionRef = await addDoc(collection(db, "companions"), {
+          name: formData.name,
+          avatar: formData.avatar,
+          description: formData.description,
+          companion_link: formData.companion_link,
+          theme: formData.theme,
+          featured: formData.featured,
+          rating: 0,
+          conversations: 0,
+          likes_count: 0,
+          dislikes_count: 0,
+          stars_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
 
         // Add tags
         if (formData.tags && formData.tags.length > 0) {
-          const { error: tagsError } = await supabase
-            .from("companions_tags")
-            .insert(
-              formData.tags.map((tagId) => ({
-                companion_id: companion.id,
-                tag_id: tagId,
-              })),
-            );
-
-          if (tagsError) throw tagsError;
+          const batch = writeBatch(db);
+          formData.tags.forEach((tagId) => {
+            const newTagRef = doc(collection(db, "companions_tags"));
+            batch.set(newTagRef, {
+              companion_id: companionRef.id,
+              tag_id: tagId,
+            });
+          });
+          await batch.commit();
         }
 
         toast({
@@ -326,9 +388,22 @@ const CompanionsAdmin = () => {
       return;
 
     try {
-      const { error } = await supabase.from("companions").delete().eq("id", id);
+      await deleteDoc(doc(db, "companions", id));
+      
+      // Delete associated tags
+      const batch = writeBatch(db);
+      const companionTagsQuery = query(
+        collection(db, "companions_tags"),
+        where("companion_id", "==", id)
+      );
+      const companionTagsSnapshot = await getDocs(companionTagsQuery);
 
-      if (error) throw error;
+      companionTagsSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      
+      await batch.commit();
+
       toast({
         title: "Success",
         description: "Companion deleted successfully",
@@ -625,7 +700,7 @@ const CompanionsAdmin = () => {
                 <TableCell>
                   <div className="text-sm">
                     ⭐️ {companion.rating} · 💬 {companion.conversations} · ❤️{" "}
-                    {companion.likes}
+                    {companion.likes_count}
                   </div>
                 </TableCell>
                 <TableCell>

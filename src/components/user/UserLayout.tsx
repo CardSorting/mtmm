@@ -1,9 +1,9 @@
 import React from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 import { MessageSquare, User, LogOut } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { toast } from "@/components/ui/use-toast";
+import { auth } from "../../lib/firebase";
+import { toast } from "../ui/use-toast";
 
 const UserLayout = () => {
   const location = useLocation();
@@ -23,16 +23,16 @@ const UserLayout = () => {
   ];
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      await auth.signOut();
+      navigate("/login");
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to sign out",
         variant: "destructive",
       });
-      return;
     }
-    navigate("/login");
   };
 
   return (
