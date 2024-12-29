@@ -18,9 +18,17 @@ import {
   Sparkles,
   Star,
   Loader2,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import Header from "../layout/Header";
 import Footer from "../layout/Footer";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 type Theme = "professional" | "casual" | "fantasy" | "all";
 type SortOption = "popular" | "newest" | "rating";
@@ -246,10 +254,12 @@ const CompanionsPage: React.FC = () => {
 
         <div className="container mx-auto px-4 py-12">
           <div className="flex gap-8">
+            {/* Left Sidebar */}
             <div className="w-64 flex-shrink-0">
               <div className="sticky top-24 bg-white rounded-lg border p-6 space-y-6">
+                {/* Search Section */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Filters</h3>
+                  <h3 className="text-lg font-semibold mb-4">Search</h3>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
@@ -261,11 +271,12 @@ const CompanionsPage: React.FC = () => {
                   </div>
                 </div>
 
+                <Separator />
+
+                {/* Themes Section */}
                 <div>
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <SlidersHorizontal className="w-4 h-4" /> Themes
-                  </h4>
-                  <div className="space-y-2">
+                  <h3 className="text-lg font-semibold mb-4">Themes</h3>
+                  <div className="space-y-1">
                     {themes.map((theme) => (
                       <Button
                         key={theme.value}
@@ -287,11 +298,10 @@ const CompanionsPage: React.FC = () => {
 
                 <Separator />
 
+                {/* Sort Section */}
                 <div>
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <Star className="w-4 h-4" /> Sort By
-                  </h4>
-                  <div className="space-y-2">
+                  <h3 className="text-lg font-semibold mb-4">Sort By</h3>
+                  <div className="space-y-1">
                     {sortOptions.map((option) => (
                       <Button
                         key={option.value}
@@ -305,43 +315,10 @@ const CompanionsPage: React.FC = () => {
                     ))}
                   </div>
                 </div>
-
-                <Separator />
-
-                {/* Tag Categories */}
-                {categories.map((category) => {
-                  const categoryTags = groupedTags[category.id] || [];
-                  if (categoryTags.length === 0) return null;
-
-                  return (
-                    <div key={category.id}>
-                      <h4 className="font-medium mb-3">{category.name}</h4>
-                      <ScrollArea className="h-[120px]">
-                        <div className="space-y-2 pr-4">
-                          {categoryTags.map((tag) => (
-                            <Button
-                              key={tag.id}
-                              variant={
-                                selectedTags.includes(tag.id)
-                                  ? "default"
-                                  : "ghost"
-                              }
-                              onClick={() => toggleTag(tag.id)}
-                              className="w-full justify-start"
-                              size="sm"
-                            >
-                              {tag.name}
-                            </Button>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                      <Separator className="my-4" />
-                    </div>
-                  );
-                })}
               </div>
             </div>
 
+            {/* Main Content */}
             <div className="flex-1">
               <Tabs defaultValue="all" className="w-full">
                 <div className="flex justify-between items-center mb-8">
@@ -352,142 +329,250 @@ const CompanionsPage: React.FC = () => {
                   </TabsList>
                 </div>
 
-                <TabsContent value="all">
-                  <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12"
-                  >
-                    <AnimatePresence>
-                      {visibleCompanions.map((companion, index) => (
-                        <motion.div
-                          key={companion.id}
-                          variants={
-                            index >= newItemsStartIndex
-                              ? newItemVariants
-                              : itemVariants
-                          }
-                          initial="hidden"
-                          animate="visible"
-                          style={{
-                            zIndex: visibleCompanions.length - index,
-                          }}
-                          className={`hover:scale-105 transition-transform duration-200 ${index >= newItemsStartIndex ? "relative" : ""}`}
-                        >
-                          <CharacterCard
-                            name={companion.name}
-                            avatar={companion.avatar}
-                            description={companion.description}
-                            companion_link={companion.companion_link}
-                            theme={companion.theme}
-                            rating={companion.rating}
-                            conversations={formatNumber(
-                              companion.conversations,
-                            )}
-                            likes={formatNumber(companion.likes)}
-                          />
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </motion.div>
-
-                  {visibleCompanions.length < filteredCompanions.length && (
-                    <motion.div
-                      className="flex justify-center items-center py-12"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      <Button
-                        size="lg"
-                        onClick={handleShowMore}
-                        disabled={isLoading}
-                        className="min-w-[200px] bg-blue-600 hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
-                      >
-                        {isLoading ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Loading more companions...</span>
-                          </div>
-                        ) : (
-                          "Show More Companions"
-                        )}
-                      </Button>
-                    </motion.div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="featured">
-                  <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12"
-                  >
-                    {featuredCompanions.map((companion, index) => (
+                <div className="flex gap-8">
+                  <div className="flex-1">
+                    <TabsContent value="all">
                       <motion.div
-                        key={companion.id}
-                        variants={itemVariants}
-                        style={{
-                          zIndex: featuredCompanions.length - index,
-                        }}
-                        className="hover:scale-105 transition-transform duration-200"
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12"
                       >
-                        <CharacterCard
-                          name={companion.name}
-                          avatar={companion.avatar}
-                          description={companion.description}
-                          companion_link={companion.companion_link}
-                          theme={companion.theme}
-                          rating={companion.rating}
-                          conversations={formatNumber(companion.conversations)}
-                          likes={formatNumber(companion.likes)}
-                        />
+                        <AnimatePresence>
+                          {visibleCompanions.map((companion, index) => (
+                            <motion.div
+                              key={companion.id}
+                              variants={
+                                index >= newItemsStartIndex
+                                  ? newItemVariants
+                                  : itemVariants
+                              }
+                              initial="hidden"
+                              animate="visible"
+                              style={{
+                                zIndex: visibleCompanions.length - index,
+                              }}
+                              className={`hover:scale-105 transition-transform duration-200 ${index >= newItemsStartIndex ? "relative" : ""}`}
+                            >
+                              <CharacterCard
+                                name={companion.name}
+                                avatar={companion.avatar}
+                                description={companion.description}
+                                companion_link={companion.companion_link}
+                                theme={companion.theme}
+                                rating={companion.rating}
+                                conversations={formatNumber(
+                                  companion.conversations,
+                                )}
+                                likes={formatNumber(companion.likes)}
+                              />
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
                       </motion.div>
-                    ))}
-                  </motion.div>
-                </TabsContent>
 
-                <TabsContent value="new">
-                  <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12"
-                  >
-                    {allCompanions
-                      .sort(
-                        (a, b) =>
-                          new Date(b.created_at).getTime() -
-                          new Date(a.created_at).getTime(),
-                      )
-                      .slice(0, 6)
-                      .map((companion, index) => (
+                      {visibleCompanions.length < filteredCompanions.length && (
                         <motion.div
-                          key={companion.id}
-                          variants={itemVariants}
-                          style={{
-                            zIndex: 6 - index,
-                          }}
-                          className="hover:scale-105 transition-transform duration-200"
+                          className="flex justify-center items-center py-12"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.2 }}
                         >
-                          <CharacterCard
-                            name={companion.name}
-                            avatar={companion.avatar}
-                            description={companion.description}
-                            companion_link={companion.companion_link}
-                            theme={companion.theme}
-                            rating={companion.rating}
-                            conversations={formatNumber(
-                              companion.conversations,
+                          <Button
+                            size="lg"
+                            onClick={handleShowMore}
+                            disabled={isLoading}
+                            className="min-w-[200px] bg-blue-600 hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+                          >
+                            {isLoading ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Loading more companions...</span>
+                              </div>
+                            ) : (
+                              "Show More Companions"
                             )}
-                            likes={formatNumber(companion.likes)}
-                          />
+                          </Button>
                         </motion.div>
-                      ))}
-                  </motion.div>
-                </TabsContent>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="featured">
+                      <motion.div
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12"
+                      >
+                        {featuredCompanions.map((companion, index) => (
+                          <motion.div
+                            key={companion.id}
+                            variants={itemVariants}
+                            style={{
+                              zIndex: featuredCompanions.length - index,
+                            }}
+                            className="hover:scale-105 transition-transform duration-200"
+                          >
+                            <CharacterCard
+                              name={companion.name}
+                              avatar={companion.avatar}
+                              description={companion.description}
+                              companion_link={companion.companion_link}
+                              theme={companion.theme}
+                              rating={companion.rating}
+                              conversations={formatNumber(
+                                companion.conversations,
+                              )}
+                              likes={formatNumber(companion.likes)}
+                            />
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    </TabsContent>
+
+                    <TabsContent value="new">
+                      <motion.div
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12"
+                      >
+                        {allCompanions
+                          .sort(
+                            (a, b) =>
+                              new Date(b.created_at).getTime() -
+                              new Date(a.created_at).getTime(),
+                          )
+                          .slice(0, 6)
+                          .map((companion, index) => (
+                            <motion.div
+                              key={companion.id}
+                              variants={itemVariants}
+                              style={{
+                                zIndex: 6 - index,
+                              }}
+                              className="hover:scale-105 transition-transform duration-200"
+                            >
+                              <CharacterCard
+                                name={companion.name}
+                                avatar={companion.avatar}
+                                description={companion.description}
+                                companion_link={companion.companion_link}
+                                theme={companion.theme}
+                                rating={companion.rating}
+                                conversations={formatNumber(
+                                  companion.conversations,
+                                )}
+                                likes={formatNumber(companion.likes)}
+                              />
+                            </motion.div>
+                          ))}
+                      </motion.div>
+                    </TabsContent>
+                  </div>
+
+                  {/* Right Sidebar */}
+                  <div className="w-64 flex-shrink-0">
+                    <div className="sticky top-24 bg-white rounded-lg border p-6 space-y-6">
+                      {/* Categories Section */}
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">
+                          Categories
+                        </h3>
+                        <Accordion
+                          type="multiple"
+                          defaultValue={categories.map((c) => c.id)}
+                          className="w-full"
+                        >
+                          {categories.map((category) => {
+                            const categoryTags = groupedTags[category.id] || [];
+                            if (categoryTags.length === 0) return null;
+
+                            const selectedCount = categoryTags.filter((tag) =>
+                              selectedTags.includes(tag.id),
+                            ).length;
+
+                            return (
+                              <AccordionItem
+                                key={category.id}
+                                value={category.id}
+                                className="border-b-0"
+                              >
+                                <AccordionTrigger className="hover:no-underline py-2 px-3 hover:bg-gray-100 rounded-md">
+                                  <div className="flex items-center justify-between w-full">
+                                    <span className="font-medium">
+                                      {category.name}
+                                    </span>
+                                    {selectedCount > 0 && (
+                                      <Badge
+                                        variant="secondary"
+                                        className="ml-2 font-normal"
+                                      >
+                                        {selectedCount}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                  <div className="space-y-1 mt-1">
+                                    {categoryTags.map((tag) => (
+                                      <Button
+                                        key={tag.id}
+                                        variant={
+                                          selectedTags.includes(tag.id)
+                                            ? "default"
+                                            : "ghost"
+                                        }
+                                        onClick={() => toggleTag(tag.id)}
+                                        className="w-full justify-start text-sm"
+                                        size="sm"
+                                      >
+                                        {tag.name}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            );
+                          })}
+                        </Accordion>
+                      </div>
+
+                      {selectedTags.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium">
+                              Selected Tags
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedTags([])}
+                            >
+                              Clear all
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedTags.map((tagId) => {
+                              const tag = tags.find((t) => t.id === tagId);
+                              return (
+                                <Badge
+                                  key={tagId}
+                                  variant="secondary"
+                                  className="cursor-pointer"
+                                  onClick={() => toggleTag(tagId)}
+                                >
+                                  {tag?.name}
+                                  <X className="w-3 h-3 ml-1" />
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </Tabs>
 
               {filteredCompanions.length === 0 && (
